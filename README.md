@@ -1,7 +1,6 @@
-# KozyTrack 🎧➡️💬
+# KozyTrack 🎧
 
-Hey there! This is KozyTrack, a simple Discord bot that shows what you're currently jamming to on Spotify in a specific channel. It keeps the status fresh by deleting the old message and posting a new one.
-
+KozyTrack is a simple Discord bot that shows what you're currently jamming to on Spotify in a specific channel.
 ## What it Does ✨
 
 -   Checks your Spotify playback status every 5 seconds.
