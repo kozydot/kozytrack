@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const chalk = require('chalk');
+const { getLogger } = require('./logger'); // use pino logger
 
+const log = getLogger('Config'); // create contextual logger
 const configPath = path.join(__dirname, '..', 'config.json'); // path to config file
 
 // holds the latest config in memory
@@ -19,15 +20,15 @@ function loadConfig() {
             configCache.targetChannelId = loadedConfig.targetChannelId || null;
             configCache.spotifyRefreshToken = loadedConfig.spotifyRefreshToken || null;
 
-            console.log(chalk.blue('[CONFIG] Loaded config file.'));
-            console.log(chalk.blue(`  - Target Channel ID:`), configCache.targetChannelId ? chalk.green(configCache.targetChannelId) : chalk.yellow('Not Set'));
-            console.log(chalk.blue(`  - Spotify Refresh Token:`), configCache.spotifyRefreshToken ? chalk.green('Set') : chalk.yellow('Not Set'));
+            log.info('Loaded config file.');
+            log.info(`  - Target Channel ID: ${configCache.targetChannelId ? configCache.targetChannelId : 'Not Set'}`);
+            log.info(`  - Spotify Refresh Token: ${configCache.spotifyRefreshToken ? 'Set' : 'Not Set'}`);
         } else {
-            console.log(chalk.yellow('[CONFIG] config.json not found, creating with defaults.'));
+            log.warn('config.json not found, creating with defaults.');
             saveConfig(); // create file with null values if it doesn't exist
         }
     } catch (error) {
-        console.error(chalk.red('[CONFIG] Error loading config.json:'), error);
+        log.error({ err: error }, 'Error loading config.json');
         // reset cache on error
         configCache.targetChannelId = null;
         configCache.spotifyRefreshToken = null;
@@ -48,9 +49,9 @@ function saveConfig(newConfig = {}) {
 
     try {
         fs.writeFileSync(configPath, JSON.stringify(configCache, null, 2));
-        console.log(chalk.blue('[CONFIG] Config saved.'));
+        log.info('Config saved.');
     } catch (error) {
-        console.error(chalk.red('[CONFIG] Error saving config.json:'), error);
+        log.error({ err: error }, 'Error saving config.json');
     }
 }
 
