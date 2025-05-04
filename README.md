@@ -1,7 +1,7 @@
-# KozyTrack 🎧
+# KozyTrack 
 
 KozyTrack is a simple Discord bot that shows what you're currently jamming to on Spotify in a specific channel.
-## What it Does ✨
+## What it Does 
 
 -   Checks your Spotify playback status every 5 seconds.
 -   If you're playing a song, it grabs the details (song name, artist, album, album art).
@@ -10,7 +10,7 @@ KozyTrack is a simple Discord bot that shows what you're currently jamming to on
 -   If you stop playing, it updates the message to show nothing's playing.
 -   Includes a `/fetchlyrics` command to look up lyrics for the current song using Genius.
 
-## Project Structure 🏗️
+## Project Structure
 
 The code is organized into modules inside the `src/` folder:
 -   `index.js`: Main startup file.
@@ -41,7 +41,7 @@ The code is organized into modules inside the `src/` folder:
 5.  **Deploy Commands:** Run `npm run deploy` in your terminal. This tells Discord about the `/channelset` and `/fetchlyrics` commands. You only need to do this once unless you change the commands later.
 6.  **Run the Bot:** Run `npm start` in your terminal (this runs `src/index.js`).
 
-## How to Use 🤔
+## How to Use
 
 1.  **First Run - Spotify Auth:**
     *   When you run `npm start` for the first time (or if your token expires), check the terminal.
@@ -58,4 +58,4 @@ The code is organized into modules inside the `src/` folder:
 
 Now, just play music on Spotify, and the bot should start updating the status message (by deleting the old one and sending a new one) in the channel you selected!
 
-Enjoy! 🎉
+Enjoy!
