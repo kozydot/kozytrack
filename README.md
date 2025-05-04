@@ -22,7 +22,7 @@ The code is organized into modules inside the `src/` folder:
 -   `embeds.js`: Creates the pretty message embeds.
 -   `commands/`: Holds the slash command logic (`channelSet.js`, `fetchLyrics.js`).
 
-## Getting Started 🚀
+## Getting Started
 
 1.  **Clone/Download:** Get the code onto your machine.
 2.  **Install Stuff:** Open your terminal in the project folder and run `npm install`.
