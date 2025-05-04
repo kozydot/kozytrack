@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+
+# Configuration file (contains sensitive refresh token)
+config.json
+
+# Memory Bank (Internal Documentation)
+memory-bank/
+
+# OS generated files
+.DS_Store
+Thumbs.db
