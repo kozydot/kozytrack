@@ -101,7 +101,7 @@ async function updateDiscordMessage(channel, embed, clientInstance, type = 'Upda
         await cleanupOldMessages(channel, clientInstance);
 
         // 2. send the new message
-        const newMessage = await channel.send({ embeds: [embed] });
+        const newMessage = await channel.send(embed);
         log.info(`Sent new status message ${newMessage.id} with status: ${type}`);
 
     } catch (error) {

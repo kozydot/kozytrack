@@ -2,6 +2,7 @@ const { getLogger } = require('./logger');
 const { getSpotifyApiInstance, getCurrentTrack } = require('./spotify');
 const { createSongEmbed, createNothingPlayingEmbed, createErrorEmbed } = require('./embeds');
 const { updateDiscordMessage } = require('./discordHandler');
+const { formatDuration } = require('./utils');
 
 const log = getLogger('Polling'); // contextual logger
 const pollingInterval = 5000; // check spotify every 5 seconds
@@ -38,7 +39,9 @@ async function performPollCheck(targetChannel, client) {
             }
             log.info(`Now Playing: ${track.name} by ${track.artists.map(a => a.name).join(', ')}`);
             currentTrackId = track.id;
-            const embed = createSongEmbed(track);
+            const currentTimeFormatted = formatDuration(playbackState.progress_ms);
+            const totalTimeFormatted = formatDuration(track.duration_ms);
+            const embed = createSongEmbed(track, currentTimeFormatted, totalTimeFormatted);
             // check return value to see if update failed critically (e.g., permissions)
             const success = await updateDiscordMessage(targetChannel, embed, client, 'Now Playing');
             if (!success) {
@@ -51,7 +54,8 @@ async function performPollCheck(targetChannel, client) {
                 log.info('Playback stopped or paused.');
                 currentTrackId = null;
                  // check return value to see if update failed critically (e.g., permissions)
-                const success = await updateDiscordMessage(targetChannel, createNothingPlayingEmbed(), client, 'Playback Stopped');
+                const nothingPlayingPayload = { embeds: [createNothingPlayingEmbed().toJSON()] };
+                const success = await updateDiscordMessage(targetChannel, nothingPlayingPayload, client, 'Playback Stopped');
                 if (!success) {
                     log.warn('Critical error updating Discord message. Stopping polling.');
                     stopPolling();

@@ -49,35 +49,63 @@ async function main() {
     });
 
     client.on('interactionCreate', async interaction => {
-        // only handle slash commands
-        if (!interaction.isChatInputCommand()) return;
+        if (interaction.isChatInputCommand()) {
+            const { commandName } = interaction;
+            log.info(`Processing command: /${commandName} by ${interaction.user.tag}`);
 
-        const { commandName } = interaction;
-        log.info(`Processing command: /${commandName} by ${interaction.user.tag}`);
-
-        try {
-            // route command to the appropriate handler
-            if (commandName === 'channelset') {
-                await handleChannelSet(interaction);
-            } else if (commandName === 'fetchlyrics') {
-                await handleFetchLyrics(interaction);
-            } else {
-                 // handle unknown commands
-                 log.warn(`Unknown command received: ${commandName}`);
-                 await interaction.reply({ content: 'Unknown command.', ephemeral: true });
+            try {
+                // route command to the appropriate handler
+                if (commandName === 'channelset') {
+                    await handleChannelSet(interaction);
+                } else if (commandName === 'fetchlyrics') {
+                    await handleFetchLyrics(interaction); // trackId will be null, handled by fetchLyrics
+                } else {
+                    // handle unknown commands
+                    log.warn(`Unknown command received: ${commandName}`);
+                    await interaction.reply({ content: 'Unknown command.', ephemeral: true });
+                }
+            } catch (error) {
+                // generic error handler for command processing
+                log.error({ err: error }, `Error handling slash command /${commandName}`);
+                try {
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: 'An error occurred while processing the command.', ephemeral: true });
+                    } else {
+                        await interaction.editReply({ content: 'An error occurred while processing the command.' });
+                    }
+                } catch (replyError) {
+                    log.error({ err: replyError }, "Failed to send error reply to slash command interaction");
+                }
             }
-        } catch (error) {
-             // generic error handler for command processing
-             log.error({ err: error }, `Error handling command /${commandName}`);
-             try {
-                 if (!interaction.replied && !interaction.deferred) {
-                     await interaction.reply({ content: 'An error occurred while processing the command.', ephemeral: true });
-                 } else {
-                     await interaction.editReply({ content: 'An error occurred while processing the command.' });
-                 }
-             } catch (replyError) {
-                  log.error({ err: replyError }, "Failed to send error reply to interaction");
-             }
+        } else if (interaction.isButton()) {
+            log.info(`Processing button interaction: ${interaction.customId} by ${interaction.user.tag}`);
+
+            if (interaction.customId.startsWith('lyrics_')) {
+                const trackId = interaction.customId.split('_')[1];
+                if (trackId) {
+                    try {
+                        await handleFetchLyrics(interaction, trackId);
+                    } catch (error) {
+                        log.error({ err: error }, `Error handling lyrics button for track ${trackId}`);
+                        try {
+                            if (!interaction.replied && !interaction.deferred) {
+                                await interaction.reply({ content: 'An error occurred while fetching lyrics for this song.', ephemeral: true });
+                            } else {
+                                await interaction.editReply({ content: 'An error occurred while fetching lyrics for this song.' });
+                            }
+                        } catch (replyError) {
+                            log.error({ err: replyError }, "Failed to send error reply to lyrics button interaction");
+                        }
+                    }
+                } else {
+                    log.warn(`Button interaction 'lyrics_' with no trackId: ${interaction.customId}`);
+                    await interaction.reply({ content: 'Could not determine the song for this action.', ephemeral: true });
+                }
+            } else {
+                // Handle other button IDs if any in the future
+                log.warn(`Unknown button ID: ${interaction.customId}`);
+                await interaction.reply({ content: 'This button is not recognized.', ephemeral: true });
+            }
         }
     });
 
