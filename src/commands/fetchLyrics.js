@@ -44,7 +44,7 @@ async function handleFetchLyrics(interaction, trackId = null) {
             track = playbackState.item;
         }
 
-        if (!track) { // General check if track object is missing
+        if (!track) { // general check if track object is missing
             log.error('Failed: Track object is undefined after attempting to fetch/get current.');
             await interaction.editReply({ content: 'Could not retrieve track information.' });
             return;
@@ -90,23 +90,23 @@ async function handleFetchLyrics(interaction, trackId = null) {
         // clean up common genius artifacts
         let cleanedLyrics = lyrics.trim();
 
-        // (New) Attempt to find the start of actual lyrics by looking for common headers
-        // and discard any preamble text before the first header.
+        // (new) try to find the start of actual lyrics by looking for common headers
+        // and ditch any preamble text before the first one.
         const commonHeadersRegex = /\[(Verse|Chorus|Intro|Outro|Bridge|Hook|Part|Segment|Pre-Chorus|Post-Chorus|Instrumental|Speaker|Skit|Interlude|Refrain|Section|Verse \d+|Chorus \d+|Intro \d+|Outro \d+)/i;
         const firstHeaderIndex = cleanedLyrics.search(commonHeadersRegex);
 
-        if (firstHeaderIndex > 0) { // If a header is found, and it's not at the very beginning (implying some preamble)
+        if (firstHeaderIndex > 0) { // if a header is found, and it's not at the very beginning (meaning there's some preamble)
             log.debug(`Found first lyrics header at index ${firstHeaderIndex}. Trimming preamble.`);
             cleanedLyrics = cleanedLyrics.substring(firstHeaderIndex);
         } else if (firstHeaderIndex === -1) {
-            // No common headers found, log this, existing cleanup might still help
+            // no common headers found, log this, the other cleanup might still help
             log.debug('No common lyrics headers found, proceeding with other cleanup methods.');
         }
-        // else if firstHeaderIndex is 0, it means lyrics start with a header, no preamble to trim based on this logic.
+        // else if firstheaderindex is 0, it means lyrics start with a header, so no preamble to trim based on this.
 
-        // remove bracketed headers like [Verse 1], [Chorus], etc. (this will also clean the first header if kept by above logic)
-        cleanedLyrics = cleanedLyrics.replace(/\[.*?\](\r?\n)?/g, ''); // Made \r?\n optional to remove headers on same line too
-         // attempt to remove potential first-line metadata like "NN Contributors..."
+        // remove bracketed headers like [verse 1], [chorus], etc. (this also cleans the first header if we kept it above)
+        cleanedLyrics = cleanedLyrics.replace(/\[.*?\](\r?\n)?/g, ''); // made \r?\n optional to also get headers on the same line
+         // try to remove potential first-line metadata like "nn contributors..."
         const lines = cleanedLyrics.split('\n');
         if (lines.length > 0 && (lines[0].includes('Contributors') || lines[0].toLowerCase().includes(title.toLowerCase()+' lyrics') || lines[0].match(/^\d+.*Lyrics$/))) {
             log.debug(`Removing potential metadata line: "${lines[0]}"`);
@@ -114,8 +114,8 @@ async function handleFetchLyrics(interaction, trackId = null) {
             cleanedLyrics = lines.join('\n').trim();
         }
         // consolidate multiple blank lines
-        cleanedLyrics = cleanedLyrics.replace(/(\r?\n){2,}/g, '\n\n'); // Changed from 3+ to 2+ for better consolidation
-        cleanedLyrics = cleanedLyrics.trim(); // Ensure no leading/trailing whitespace after all cleanup
+        cleanedLyrics = cleanedLyrics.replace(/(\r?\n){2,}/g, '\n\n'); // changed from 3+ to 2+ for better consolidation
+        cleanedLyrics = cleanedLyrics.trim(); // ensure no leading/trailing whitespace after all this
 
         // prepare embed
         const maxDescLength = 4000; // discord embed description limit
@@ -135,11 +135,11 @@ async function handleFetchLyrics(interaction, trackId = null) {
         log.error({ err: error }, 'Error during /fetchlyrics');
         // try to send an error message back to the user
         try {
-            // Check if we can still edit the reply (if deferral succeeded)
+            // check if we can still edit the reply (if deferral was successful)
              if (interaction.deferred || interaction.replied) {
                  await interaction.editReply({ content: 'An error occurred while fetching lyrics. Please try again later.' });
              } else {
-                 // If deferral failed or something else went wrong, try a new reply
+                 // if deferral failed or something else went wrong, try a new reply
                  await interaction.reply({ content: 'An error occurred while fetching lyrics.', ephemeral: true });
              }
         } catch (replyError) {

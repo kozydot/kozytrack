@@ -1,16 +1,55 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold, italic, inlineCode } = require('discord.js');
+const axios = require('axios');
+const Vibrant = require('node-vibrant/node'); // corrected import for node.js environment
+const { getLogger } = require('./logger');
+const log = getLogger('Embeds');
 
-// creates the embed for the currently playing song status based on "Modern & Informative" design
-function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) {
+const DEFAULT_EMBED_COLOR = 0x1DB954; // spotify green
+
+// helper to get dominant color from an image url
+async function getDominantColor(imageUrl) {
+    log.debug(`Attempting to get dominant color for image URL: ${imageUrl}`);
+    if (!imageUrl) {
+        log.warn('No image URL provided for dominant color extraction, using default.');
+        return DEFAULT_EMBED_COLOR;
+    }
+    try {
+        log.trace({ url: imageUrl }, 'Fetching image buffer...');
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
+        log.trace('Image buffer fetched. Extracting palette with Vibrant...');
+        const palette = await Vibrant.Vibrant.from(buffer).getPalette();
+        log.trace({ palette }, 'Palette extracted.');
+
+        // prefer vibrant, darkvibrant, or muted swatch, fallback to default
+        const swatch = palette.DarkVibrant || palette.Vibrant || palette.DarkMuted || palette.Muted || palette.LightVibrant || palette.LightMuted;
+
+        if (swatch && swatch.hex) {
+            const colorInt = parseInt(swatch.hex.substring(1), 16); // convert hex string to integer
+            log.info(`Dominant color extracted: ${swatch.hex} (Int: ${colorInt})`);
+            return colorInt;
+        }
+        log.warn('Could not find a suitable swatch (DarkVibrant, Vibrant, DarkMuted, Muted, LightVibrant, LightMuted) in the palette. Using default color.');
+        return DEFAULT_EMBED_COLOR;
+    } catch (error) {
+        log.error({ err: error, imageUrl }, 'Error getting dominant color. Using default.');
+        return DEFAULT_EMBED_COLOR;
+    }
+}
+
+// creates the embed for the currently playing song status - "modern & informative" design
+async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) {
     const artists = track.artists.map(artist => artist.name).join(', ');
     const albumArt = track.album.images.length > 0 ? track.album.images[0].url : null;
-    // Using Spotify icon as a placeholder for KozyTrack author icon as per thought process.
-    // A dedicated KozyTrack icon URL should be used if available.
-    const kozyTrackIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/100px-Spotify_logo_without_text.svg.png'; // Placeholder
+    // using spotify icon as a placeholder for kozytrack author icon for now.
+    // todo: use a dedicated kozytrack icon url if we get one.
+    const kozyTrackIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/100px-Spotify_logo_without_text.svg.png'; // placeholder
     const spotifyIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/100px-Spotify_logo_without_text.svg.png';
 
+    const dynamicColor = await getDominantColor(albumArt);
+
     const embed = new EmbedBuilder()
-        .setColor(0x1DB954) // Spotify Green
+        .setColor(dynamicColor)
         .setTitle(track.name)
         .setURL(track.external_urls.spotify)
         .setAuthor({ name: 'Playing on KozyTrack', iconURL: kozyTrackIconUrl })
@@ -18,7 +57,7 @@ function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) {
         .addFields(
             { name: '🎤 Artist(s)', value: bold(artists), inline: true },
             { name: '💿 Album', value: italic(track.album.name), inline: true },
-            { name: '\u200B', value: '\u200B', inline: false } // Blank field for spacing before buttons
+            { name: '\u200B', value: '\u200B', inline: false } // blank field for spacing before buttons
         )
         .setFooter({ text: `Spotify | Updated at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, iconURL: spotifyIconUrl });
 
@@ -26,7 +65,7 @@ function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) {
         embed.setThumbnail(albumArt);
     }
 
-    // Interactive Components
+    // interactive components
     const viewOnSpotifyButton = new ButtonBuilder()
         .setLabel('Open on Spotify')
         .setStyle(ButtonStyle.Link)

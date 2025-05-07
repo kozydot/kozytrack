@@ -1,6 +1,8 @@
 // load environment variables first
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
 const { InteractionType } = require('discord.js');
 const { getLogger } = require('./logger');
 const config = require('./config');
@@ -11,9 +13,48 @@ const { handleChannelSet } = require('./commands/channelSet');
 const { handleFetchLyrics } = require('./commands/fetchLyrics');
 
 const log = getLogger('Main'); // contextual logger for main process
+const LOCK_FILE_PATH = path.join(__dirname, '..', '.kozytrack.lock'); // Lock file in project root
+
+// Function to acquire a lock
+function acquireLock() {
+    try {
+        // Try to create the lock file exclusively
+        // If it exists, this will throw an error
+        fs.writeFileSync(LOCK_FILE_PATH, process.pid.toString(), { flag: 'wx' });
+        log.info(`Lock acquired. PID: ${process.pid}`);
+        return true;
+    } catch (error) {
+        if (error.code === 'EEXIST') {
+            const existingPid = fs.readFileSync(LOCK_FILE_PATH, 'utf8');
+            log.warn(`Another instance of KozyTrack (PID: ${existingPid}) might be running. Lock file ${LOCK_FILE_PATH} already exists.`);
+            log.warn('If you are sure no other instance is running, delete the .kozytrack.lock file and try again.');
+            return false;
+        }
+        // For other errors, rethrow
+        log.error({ err: error }, 'Error acquiring lock file.');
+        throw error;
+    }
+}
+
+// Function to release the lock
+function releaseLock() {
+    try {
+        if (fs.existsSync(LOCK_FILE_PATH)) {
+            fs.unlinkSync(LOCK_FILE_PATH);
+            log.info('Lock released.');
+        }
+    } catch (error) {
+        log.error({ err: error }, 'Error releasing lock file.');
+    }
+}
 
 // main function to initialize and run the bot
 async function main() {
+    if (!acquireLock()) {
+        log.warn('Exiting due to existing lock file.');
+        process.exit(1); // Exit if lock can't be acquired
+    }
+
     log.info('Starting KozyTrack Bot...');
     // load config on startup
     config.loadConfig();
@@ -116,13 +157,22 @@ async function main() {
 // run the main function
 main().catch(error => {
     log.fatal({ err: error }, 'Unhandled error in main function');
+    releaseLock(); // Ensure lock is released on fatal error
     process.exit(1); // exit on critical error
 });
 
-// optional: graceful shutdown handling
-// process.on('SIGINT', async () => {
-//     log.warn('\n[SYSTEM] SIGINT received. Shutting down...');
-//     polling.stopPolling();
-//     // add any other cleanup here (e.g., close db connections)
-//     process.exit(0);
-// });
+// Graceful shutdown handling
+process.on('exit', releaseLock); // Release lock on normal exit
+process.on('SIGINT', async () => { // CTRL+C
+    log.warn('\n[SYSTEM] SIGINT received. Shutting down...');
+    polling.stopPolling();
+    // Add any other cleanup here (e.g., close db connections)
+    // releaseLock() will be called by 'exit' event
+    process.exit(0);
+});
+process.on('SIGTERM', async () => { // kill command
+    log.warn('\n[SYSTEM] SIGTERM received. Shutting down...');
+    polling.stopPolling();
+    // releaseLock() will be called by 'exit' event
+    process.exit(0);
+});

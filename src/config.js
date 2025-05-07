@@ -21,8 +21,8 @@ function loadConfig() {
             configCache.spotifyRefreshToken = loadedConfig.spotifyRefreshToken || null;
 
             log.info('Loaded config file.');
-            log.info(`  - Target Channel ID: ${configCache.targetChannelId ? configCache.targetChannelId : 'Not Set'}`);
-            log.info(`  - Spotify Refresh Token: ${configCache.spotifyRefreshToken ? 'Set' : 'Not Set'}`);
+            log.info(`Target Channel ID: ${configCache.targetChannelId ? configCache.targetChannelId : 'Not Set'}`);
+            log.info(`Spotify Refresh Token: ${configCache.spotifyRefreshToken ? 'Set' : 'Not Set'}`);
         } else {
             log.warn('config.json not found, creating with defaults.');
             saveConfig(); // create file with null values if it doesn't exist

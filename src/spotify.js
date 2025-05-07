@@ -1,7 +1,7 @@
 const SpotifyWebApi = require('spotify-web-api-node');
 const { getLogger } = require('./logger');
 const { getConfig, saveConfig } = require('./config');
-const { startCallbackServer } = require('./authServer'); // needed to start auth flow
+const { startCallbackServer } = require('./authServer'); // to start the oauth callback http server
 
 const log = getLogger('Spotify'); // contextual logger
 const spotifyClientId = process.env.SPOTIFY_CLIENT_ID;
@@ -9,7 +9,7 @@ const spotifyClientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 const spotifyRedirectUri = 'http://127.0.0.1:8888/callback';
 const spotifyScopes = ['user-read-currently-playing', 'user-read-playback-state'];
 
-// basic check for required env vars
+// basic check for required spotify env vars
 if (!spotifyClientId || !spotifyClientSecret) {
     log.fatal("[SETUP] Error: SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not found in .env file.");
     process.exit(1);
@@ -39,23 +39,23 @@ async function initializeSpotify() {
             spotifyApi.setAccessToken(data.body['access_token']);
             log.info('Access token refreshed successfully.');
 
-            // spotify might give us a new refresh token
+            // spotify might give us a new refresh token when we refresh the access token
             if (data.body['refresh_token']) {
                 log.info('Received a new refresh token.');
                 saveConfig({ spotifyRefreshToken: data.body['refresh_token'] });
             }
-            return true; // success
+            return true; // successfully initialized
         } catch (error) {
             log.error({ err: error }, 'Could not refresh Spotify access token');
             log.warn('Refresh token might be invalid. Please re-authorize.');
-            saveConfig({ spotifyRefreshToken: null }); // clear invalid token
-            requestSpotifyAuthorization(); // ask user to re-auth
-            return false; // needs auth
+            saveConfig({ spotifyRefreshToken: null }); // clear the likely invalid token from config
+            requestSpotifyAuthorization(); // ask user to re-authorize via console
+            return false; // indicates initialization failed, needs auth
         }
     } else {
         log.warn('No Spotify refresh token found.');
-        requestSpotifyAuthorization();
-        return false; // needs auth
+        requestSpotifyAuthorization(); // prompt user to authorize
+        return false; // indicates initialization failed, needs auth
     }
 }
 
@@ -67,7 +67,7 @@ function requestSpotifyAuthorization() {
     log.warn('!!! Please visit this URL in your browser to authorize the bot:');
     log.warn(`!!! ${authorizeURL}`);
     log.warn('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n');
-    startCallbackServer(spotifyApi); // start server and pass api instance
+    startCallbackServer(spotifyApi); // start the http server and pass the api instance to it
 }
 
 // fetches the currently playing track, handles token refresh if needed during fetch
@@ -79,12 +79,12 @@ async function getCurrentTrack() {
     try {
         const data = await spotifyApi.getMyCurrentPlayingTrack();
         if (data.body && data.body.item) {
-            return data.body; // return full playback state object
+            return data.body; // return the full playback state object which includes track item, progress, etc.
         }
-        return null; // nothing playing or item is null
+        return null; // nothing playing, or item is null (e.g., an ad is playing)
     } catch (error) {
          log.error({ err: error }, 'Error fetching current track');
-         // handle token expiration during fetch
+         // handle token expiration (401 error) during the fetch attempt
          if (error.statusCode === 401) {
              log.warn('Token expired during track fetch. Attempting refresh...');
              try {
@@ -95,17 +95,17 @@ async function getCurrentTrack() {
                      log.info('Received a new refresh token during track fetch.');
                      saveConfig({ spotifyRefreshToken: refreshData.body['refresh_token'] });
                  }
-                 // retry fetching track immediately
+                 // retry fetching the track immediately with the new token
                  log.debug('Retrying track fetch after token refresh.');
                  const retryData = await spotifyApi.getMyCurrentPlayingTrack();
                  return retryData.body;
              } catch (refreshError) {
                  log.error({ err: refreshError }, 'Could not refresh Spotify access token during track fetch');
-                 // stop polling? handled in polling.js now
-                 return null; // failed to refresh
+                 // if refresh fails, polling will eventually stop due to lack of auth in performPollCheck
+                 return null; // failed to refresh, can't get track
              }
          }
-         return null; // other error
+         return null; // some other error occurred during track fetch
     }
 }
 
