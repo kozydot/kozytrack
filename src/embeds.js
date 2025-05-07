@@ -43,7 +43,7 @@ async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) 
     const albumArt = track.album.images.length > 0 ? track.album.images[0].url : null;
     // using spotify icon as a placeholder for kozytrack author icon for now.
     // todo: use a dedicated kozytrack icon url if we get one.
-    const kozyTrackIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/100px-Spotify_logo_without_text.svg.png'; // placeholder
+    const kozyTrackIconUrl = 'https://i.imgur.com/S8FRQOb.png'; // updated kozytrack icon
     const spotifyIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/100px-Spotify_logo_without_text.svg.png';
 
     const dynamicColor = await getDominantColor(albumArt);
