@@ -42,7 +42,7 @@ async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) 
     const artists = track.artists.map(artist => artist.name).join(', ');
     const albumArt = track.album.images.length > 0 ? track.album.images[0].url : null;
     const kozyTrackIconUrl = 'https://i.imgur.com/S8FRQOb.png'; // kozytrack icon
-    const spotifyIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/100px-Spotify_logo_without_text.svg.png';
+    const spotifyIconUrl = 'https://i.imgur.com/JCkE8Ul.gif'; // User provided animated GIF
 
     const dynamicColor = await getDominantColor(albumArt);
 
