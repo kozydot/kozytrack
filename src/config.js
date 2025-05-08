@@ -3,7 +3,8 @@ const path = require('path');
 const { getLogger } = require('./logger'); // use pino logger
 
 const log = getLogger('Config'); // create contextual logger
-const configPath = path.join(__dirname, '..', 'config.json'); // path to config file
+const dataDir = path.join(__dirname, '..', 'data'); // path to data directory
+const configPath = path.join(dataDir, 'config.json'); // path to config file
 
 // holds the latest config in memory
 let configCache = {
@@ -48,8 +49,13 @@ function saveConfig(newConfig = {}) {
     }
 
     try {
+        // Ensure the data directory exists
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+            log.info(`Created data directory at ${dataDir}`);
+        }
         fs.writeFileSync(configPath, JSON.stringify(configCache, null, 2));
-        log.info('Config saved.');
+        log.info(`Config saved to ${configPath}`);
     } catch (error) {
         log.error({ err: error }, 'Error saving config.json');
     }
