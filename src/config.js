@@ -41,8 +41,8 @@ function loadConfig() {
                     configCache.targetChannelId = loadedConfig.targetChannelId || null;
                     configCache.spotifyRefreshToken = loadedConfig.spotifyRefreshToken || null;
                     log.info(`Successfully loaded and parsed config file from ${configPath}.`);
-                    log.info(`  -> Target Channel ID: ${configCache.targetChannelId ? configCache.targetChannelId : 'Not Set'}`);
-                    log.info(`  -> Spotify Refresh Token: ${configCache.spotifyRefreshToken ? 'Set' : 'Not Set'}`);
+                    log.info(`Target Channel ID: ${configCache.targetChannelId ? configCache.targetChannelId : 'Not Set'}`);
+                    log.info(`Spotify Refresh Token: ${configCache.spotifyRefreshToken ? 'Set' : 'Not Set'}`);
                 } catch (parseError) {
                     log.error({ err: parseError }, `Failed to parse JSON from config file at ${configPath}. File content might be corrupt. Treating as missing.`);
                     // Reset cache and proceed to create default
