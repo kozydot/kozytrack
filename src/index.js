@@ -1,5 +1,7 @@
 // load environment variables first
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 const fs = require('fs');
 const path = require('path');
