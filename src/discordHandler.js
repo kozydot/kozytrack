@@ -125,6 +125,7 @@ function login() {
 
 module.exports = {
     client, // export client for event handling
+    getDiscordClient,
     getTargetChannel,
     setTargetChannel,
     fetchTargetChannel,
