@@ -6,7 +6,7 @@ const { startCallbackServer } = require('./authServer'); // to start the oauth c
 const log = getLogger('Spotify'); // contextual logger
 const spotifyClientId = process.env.SPOTIFY_CLIENT_ID;
 const spotifyClientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-const spotifyRedirectUri = 'http://127.0.0.1:8888/callback';
+const spotifyRedirectUri = process.env.SPOTIFY_REDIRECT_URI || 'http://127.0.0.1:8888/callback';
 const spotifyScopes = ['user-read-currently-playing', 'user-read-playback-state'];
 
 // basic check for required spotify env vars

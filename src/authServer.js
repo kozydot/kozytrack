@@ -80,8 +80,9 @@ function startCallbackServer(spotifyApiInstance) {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('KozyTrack callback server running. Waiting for Spotify redirect...');
         }
-    }).listen(8888, '127.0.0.1', () => { // listen specifically on loopback
-        log.info(`Callback server listening on http://127.0.0.1:8888/callback`);
+    }).listen(process.env.PORT || 8888, '0.0.0.0', () => {
+        const port = process.env.PORT || 8888;
+        log.info(`Callback server listening on host 0.0.0.0, port ${port}. Waiting for /callback`);
     });
 
     server.on('error', (err) => {
