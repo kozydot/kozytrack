@@ -83,7 +83,13 @@ async function getCurrentTrack() {
         }
         return null; // nothing playing, or item is null (e.g., an ad is playing)
     } catch (error) {
-         log.error({ err: error }, 'Error fetching current track');
+         if (error.statusCode === 401) {
+            // Log the 401 error as a warning because we will attempt to recover
+            log.warn({ err: error }, 'Error fetching current track (token expired, attempting refresh)');
+         } else {
+            // Log other errors as actual errors
+            log.error({ err: error }, 'Error fetching current track');
+         }
          // handle token expiration (401 error) during the fetch attempt
          if (error.statusCode === 401) {
              log.warn('Token expired during track fetch. Attempting refresh...');
@@ -98,9 +104,11 @@ async function getCurrentTrack() {
                  // retry fetching the track immediately with the new token
                  log.debug('Retrying track fetch after token refresh.');
                  const retryData = await spotifyApi.getMyCurrentPlayingTrack();
+                 // Add a success message if the retry works
+                 log.info('Successfully fetched track after token refresh and retry.');
                  return retryData.body;
              } catch (refreshError) {
-                 log.error({ err: refreshError }, 'Could not refresh Spotify access token during track fetch');
+                 log.error({ err: refreshError }, 'Could not refresh token or fetch track after retry');
                  // if refresh fails, polling will eventually stop due to lack of auth in performPollCheck
                  return null; // failed to refresh, can't get track
              }
