@@ -133,18 +133,12 @@ async function handleFetchLyrics(interaction, trackId = null) {
         await interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
-        log.error({ err: error }, 'Error during /fetchlyrics');
-        // try sending error reply
+        log.error({ err: error }, 'Error during /fetchlyrics (initial editReply likely failed)');
+        // try sending a followup error message instead of editing again
         try {
-            // can we edit the deferred reply?
-             if (interaction.deferred || interaction.replied) {
-                 await interaction.editReply({ content: 'An error occurred while fetching lyrics. Please try again later.' });
-             } else {
-                 // otherwise, try a new ephemeral reply
-                 await interaction.reply({ content: 'An error occurred while fetching lyrics.', ephemeral: true });
-             }
-        } catch (replyError) {
-             log.error({ err: replyError }, "failed sending error reply");
+             await interaction.followUp({ content: 'An error occurred while fetching lyrics. Please try again later.', ephemeral: true });
+        } catch (followUpError) {
+             log.error({ err: followUpError }, "failed sending followup error reply");
         }
     }
 }
