@@ -5,7 +5,7 @@ const { getLogger } = require('./logger');
 const log = getLogger('EMBEDS');
 
 const DEFAULT_EMBED_COLOR = 0x1DB954; // default color (spotify green)
-const SPOTIFY_ICON_URL = 'https://i.imgur.com/K4245TL.gif'; // User provided animated GIF
+const SPOTIFY_ICON_URL = 'https://i.imgur.com/K4245TL.gif'; // Corrected User provided animated GIF
 
 // get dominant color from image url
 async function getDominantColor(imageUrl) {
@@ -58,7 +58,8 @@ async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) 
             { name: '💿 Album', value: italic(track.album.name), inline: true },
             { name: '\u200B', value: '\u200B', inline: false } // spacer field
         )
-        .setFooter({ text: `Spotify | Updated at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, iconURL: SPOTIFY_ICON_URL });
+        .setTimestamp() // Add Discord's default timestamp
+        .setFooter({ text: 'Spotify', iconURL: SPOTIFY_ICON_URL }); // Simplified text
 
     if (albumArt) {
         embed.setThumbnail(albumArt);
