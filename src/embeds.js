@@ -101,9 +101,11 @@ function createErrorEmbed(error, title = 'Error Fetching Spotify Status') {
 }
 
 // create lyrics embed
-function createLyricsEmbed(title, artist, lyrics, trackUrl, albumArtUrl, truncated) {
+async function createLyricsEmbed(title, artist, lyrics, trackUrl, albumArtUrl, truncated) { // make async
+     const dynamicColor = await getDominantColor(albumArtUrl); // get dynamic color
+     log.debug({ dynamicColor }, 'Using dynamic color for lyrics embed'); // log the color being used
      const embed = new EmbedBuilder()
-        .setColor(0x1DB954) // spotify green
+        .setColor(dynamicColor) // use dynamic color
         .setTitle(title)
         .setURL(trackUrl) // link to song
         .setAuthor({ name: artist })

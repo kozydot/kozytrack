@@ -125,9 +125,11 @@ async function handleFetchLyrics(interaction, trackId = null) {
         }
 
         const albumArtUrl = track.album.images.length > 0 ? track.album.images[0].url : null;
-        const embed = createLyricsEmbed(title, artist, cleanedLyrics, track.external_urls.spotify, albumArtUrl, truncated);
+        log.debug({ albumArtUrl }, 'Passing album art URL to createLyricsEmbed'); // added log
+        const embed = await createLyricsEmbed(title, artist, cleanedLyrics, track.external_urls.spotify, albumArtUrl, truncated); // added await
 
         // send lyrics
+        log.debug('Lyrics embed created with dynamic color, sending reply...'); // added log
         await interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
