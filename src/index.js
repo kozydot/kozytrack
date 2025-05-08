@@ -100,8 +100,6 @@ async function main() {
                 // route commands
                 if (commandName === 'channelset') {
                     await handleChannelSet(interaction);
-                } else if (commandName === 'fetchlyrics') {
-                    await handleFetchLyrics(interaction); // track id handled by fetchlyrics
                 } else {
                     // unknown command
                     log.warn(`Unknown command received: ${commandName}`);
