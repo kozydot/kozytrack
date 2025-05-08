@@ -5,7 +5,7 @@ const { getLogger } = require('./logger');
 const log = getLogger('EMBEDS');
 
 const DEFAULT_EMBED_COLOR = 0x1DB954; // default color (spotify green)
-const SPOTIFY_ICON_URL = 'https://i.imgur.com/JCkE8Ul.gif'; // User provided animated GIF
+const SPOTIFY_ICON_URL = 'https://i.imgur.com/K4245TL.gif'; // User provided animated GIF
 
 // get dominant color from image url
 async function getDominantColor(imageUrl) {
@@ -43,7 +43,7 @@ async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) 
     const artists = track.artists.map(artist => artist.name).join(', ');
     const albumArt = track.album.images.length > 0 ? track.album.images[0].url : null;
     const kozyTrackIconUrl = 'https://i.imgur.com/S8FRQOb.png'; // kozytrack icon
-    // const spotifyIconUrl = 'https://i.imgur.com/JCkE8Ul.gif'; // Moved to module scope as SPOTIFY_ICON_URL
+    // const spotifyIconUrl = 'https://i.imgur.com/K4245TL.gif'; // Moved to module scope as SPOTIFY_ICON_URL
 
     const dynamicColor = await getDominantColor(albumArt);
 
