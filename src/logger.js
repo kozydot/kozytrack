@@ -1,7 +1,7 @@
 const pino = require('pino');
-const chalk = require('chalk'); // re-import chalk for context coloring
+const chalk = require('chalk'); // for context coloring
 
-// base logger configuration - no context prefix here
+// base pino logger (no context prefix)
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
   transport: {
@@ -10,38 +10,40 @@ const logger = pino({
       colorize: true,
       levelFirst: true,
       translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
-      ignore: 'pid,hostname,context', // ignore context binding here, we handle it manually
-      // messageFormat: '[{context}] {msg}', // remove default pino context formatting
+      ignore: 'pid,hostname,context', // ignore pino's context, we handle prefix
+      // (removed default context format)
     },
   },
 });
 
-// define colors for different contexts
+// colors for context tags
 const contextColors = {
-    'Main': chalk.bold.white,
-    'Config': chalk.blue,
-    'Discord': chalk.magenta,
-    'Spotify': chalk.green,
-    'AuthServer': chalk.cyan,
-    'Polling': chalk.yellow,
-    'Cmd:ChannelSet': chalk.bold.magenta,
-    'Cmd:FetchLyrics': chalk.bold.cyan,
-    'Lyrics': chalk.italic.gray, // for lyrics specific logs inside fetchlyrics command
-    'Embeds': chalk.hex('#FFD700'), // gold color for embeds module
-    'DEFAULT': chalk.gray, // fallback color for unstyled contexts
+    'MAIN': chalk.bold.white,
+    'CONFIG': chalk.blue,
+    'DISCORD': chalk.magenta,
+    'SPOTIFY': chalk.green,
+    'AUTHSVR': chalk.cyan,
+    'POLLING': chalk.yellow,
+    'CMD:CHANNELSET': chalk.bold.magenta,
+    'CMD:FETCHLYRICS': chalk.bold.cyan,
+    'LYRICS': chalk.italic.gray,
+    'EMBEDS': chalk.hex('#FFD700'),
+    'DEFAULT': chalk.gray,
 };
 
-// helper function to create contextual loggers
+// get a logger instance with context prefix
 function getLogger(context = 'App') {
-    const color = contextColors[context] || contextColors['DEFAULT'];
-    const prefix = color(`[${context}]`);
+    // Use uppercase context for lookup and prefix
+    const upperContext = context.toUpperCase();
+    const color = contextColors[upperContext] || contextColors['DEFAULT'];
+    const prefix = color(`[${upperContext}]`);
 
-    // return a wrapper object with logging methods
+    // return wrapper for pino methods
     return {
         info: (obj, msg) => {
-            if (typeof obj === 'string') { // only message is passed
+            if (typeof obj === 'string') { // only msg passed
                 logger.info(`${prefix} ${obj}`);
-            } else { // object and message are passed
+            } else { // obj + msg passed
                 logger.info(obj, `${prefix} ${msg}`);
             }
         },
@@ -53,12 +55,12 @@ function getLogger(context = 'App') {
             }
         },
         error: (obj, msg) => {
-             if (typeof obj === 'string') { // often an error message string is passed as first arg
+             if (typeof obj === 'string') { // msg string passed first?
                  logger.error(`${prefix} ${obj}`);
-             } else if (obj instanceof Error) { // actual error object passed first
-                 logger.error({ err: obj }, `${prefix} ${msg || obj.message}`); // log the error object under 'err'
+             } else if (obj instanceof Error) { // error obj passed first?
+                 logger.error({ err: obj }, `${prefix} ${msg || obj.message}`); // log error obj under 'err'
              }
-              else { // structured object + message
+              else { // structured obj + msg?
                  logger.error(obj, `${prefix} ${msg}`);
              }
         },
@@ -77,21 +79,21 @@ function getLogger(context = 'App') {
             }
         },
         fatal: (obj, msg) => {
-             if (typeof obj === 'string') { // string message
+             if (typeof obj === 'string') { // string msg?
                  logger.fatal(`${prefix} ${obj}`);
-             } else if (obj instanceof Error) { // actual error object
-                 logger.fatal({ err: obj }, `${prefix} ${msg || obj.message}`); // log error object under 'err'
+             } else if (obj instanceof Error) { // error obj?
+                 logger.fatal({ err: obj }, `${prefix} ${msg || obj.message}`); // log error obj under 'err'
              }
-              else { // structured object + message
+              else { // structured obj + msg?
                  logger.fatal(obj, `${prefix} ${msg}`);
              }
         },
-        // allow direct child logger access if needed, though less common with this wrapper
+        // direct child access (rarely needed)
         child: (bindings) => logger.child(bindings),
     };
 }
 
 module.exports = {
-    // logger, // maybe don't export the base pino logger directly anymore
+    // logger, // don't export base logger
     getLogger,
 };

@@ -1,40 +1,40 @@
 const fs = require('fs');
 const path = require('path');
-const { getLogger } = require('./logger'); // use pino logger
+const { getLogger } = require('./logger'); // pino logger
 
-const log = getLogger('Config'); // create contextual logger
-const dataDir = path.join(__dirname, '..', 'data'); // path to data directory
-const configPath = path.join(dataDir, 'config.json'); // path to config file
+const log = getLogger('CONFIG'); // logger for this module
+const dataDir = path.join(__dirname, '..', 'data'); // where config lives
+const configPath = path.join(dataDir, 'config.json'); // the config file itself
 
-// holds the latest config in memory
+// in-memory cache of config
 let configCache = {
     targetChannelId: null,
     spotifyRefreshToken: null,
 };
 
-// loads config from config.json into memory cache
+// load config from file into cache
 function loadConfig() {
     try {
         if (fs.existsSync(configPath)) {
             log.debug(`Found config file at: ${configPath}`);
             let rawData = '';
             try {
-                rawData = fs.readFileSync(configPath, 'utf8'); // Read as utf8 string
+                rawData = fs.readFileSync(configPath, 'utf8'); // read file content
             } catch (readError) {
                  log.error({ err: readError }, `Failed to read existing config file at ${configPath}. Treating as missing.`);
-                 // Reset cache and proceed to create default
+                 // reset cache, create default below
                  configCache.targetChannelId = null;
                  configCache.spotifyRefreshToken = null;
-                 saveConfig(); // Attempt to create a default file
+                 saveConfig(); // try creating default file
                  return configCache;
             }
 
             if (!rawData || rawData.trim().length === 0) {
                 log.warn(`Config file at ${configPath} is empty. Treating as missing and creating defaults.`);
-                // Reset cache and proceed to create default
+                // reset cache, create default below
                 configCache.targetChannelId = null;
                 configCache.spotifyRefreshToken = null;
-                saveConfig(); // Attempt to create a default file
+                saveConfig(); // try creating default file
             } else {
                 try {
                     const loadedConfig = JSON.parse(rawData);
@@ -45,18 +45,18 @@ function loadConfig() {
                     log.info(`Spotify Refresh Token: ${configCache.spotifyRefreshToken ? 'Set' : 'Not Set'}`);
                 } catch (parseError) {
                     log.error({ err: parseError }, `Failed to parse JSON from config file at ${configPath}. File content might be corrupt. Treating as missing.`);
-                    // Reset cache and proceed to create default
+                    // reset cache, create default below
                     configCache.targetChannelId = null;
                     configCache.spotifyRefreshToken = null;
-                    saveConfig(); // Attempt to create a default file (overwriting potentially corrupt one)
+                    saveConfig(); // try creating default file (might overwrite bad one)
                 }
             }
         } else {
             log.warn(`Config file not found at ${configPath}, creating with defaults.`);
-            saveConfig(); // create file with null values if it doesn't exist
+            saveConfig(); // create default file if none exists
         }
     } catch (error) {
-        // Catch any other unexpected errors during the process
+        // catch any other unexpected errors
         log.error({ err: error }, `Unexpected error during config load process for ${configPath}. Resetting config cache.`);
         configCache.targetChannelId = null;
         configCache.spotifyRefreshToken = null;
@@ -64,10 +64,10 @@ function loadConfig() {
     return configCache;
 }
 
-// saves current config cache to config.json
-// optionally updates cache with new values before saving
+// save current cache to config file
+// optionally update cache first
 function saveConfig(newConfig = {}) {
-    // update cache with any new values provided
+    // update cache if new values given
     if (newConfig.targetChannelId !== undefined) {
         configCache.targetChannelId = newConfig.targetChannelId;
     }
@@ -76,7 +76,7 @@ function saveConfig(newConfig = {}) {
     }
 
     try {
-        // Ensure the data directory exists
+        // make sure ./data/ dir exists
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
             log.info(`Created data directory at ${dataDir}`);
@@ -88,7 +88,7 @@ function saveConfig(newConfig = {}) {
     }
 }
 
-// returns the current cached config
+// get the current cached config
 function getConfig() {
     return configCache;
 }

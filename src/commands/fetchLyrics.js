@@ -1,21 +1,21 @@
 const { getLogger } = require('../logger');
 const { getLyrics } = require('genius-lyrics-api');
-const { getSpotifyApiInstance, getCurrentTrack } = require('../spotify'); // spotify utils
-const { createLyricsEmbed } = require('../embeds'); // embed creation
+const { getSpotifyApiInstance, getCurrentTrack } = require('../spotify'); // spotify helpers
+const { createLyricsEmbed } = require('../embeds'); // embed helper
 
-const log = getLogger('Cmd:FetchLyrics'); // contextual logger
+const log = getLogger('CMD:FETCHLYRICS'); // logger for this command
 
-// handles the /fetchlyrics command
+// handle /fetchlyrics or button click
 async function handleFetchLyrics(interaction, trackId = null) {
     if (trackId) {
         log.info(`Processing lyrics button for track ID ${trackId} by ${interaction.user.tag}`);
     } else {
         log.info(`Processing /fetchlyrics command by ${interaction.user.tag}`);
     }
-    await interaction.deferReply(); // needs deferral as lyrics fetching can take time
+    await interaction.deferReply(); // defer reply (lyrics fetch can be slow)
 
     const spotifyApi = getSpotifyApiInstance();
-    // check if spotify is connected
+    // check spotify auth
     if (!spotifyApi || !spotifyApi.getAccessToken()) {
         log.warn('Failed: Spotify not authenticated.');
         await interaction.editReply({ content: 'Spotify is not connected. Please ensure the bot owner has authorized Spotify.' });
@@ -33,7 +33,7 @@ async function handleFetchLyrics(interaction, trackId = null) {
             }
             track = trackData.body;
         } else {
-            // get current track data (includes internal token refresh logic)
+            // get current track (handles refresh)
             const playbackState = await getCurrentTrack();
 
             if (!playbackState || !playbackState.is_playing || !playbackState.item) {
@@ -44,12 +44,12 @@ async function handleFetchLyrics(interaction, trackId = null) {
             track = playbackState.item;
         }
 
-        if (!track) { // general check if track object is missing
+        if (!track) { // check track obj exists
             log.error('Failed: Track object is undefined after attempting to fetch/get current.');
             await interaction.editReply({ content: 'Could not retrieve track information.' });
             return;
         }
-        const artist = track.artists[0]?.name; // use first artist
+        const artist = track.artists[0]?.name; // use first artist for search
         const title = track.name;
 
         if (!artist || !title) {
@@ -58,7 +58,7 @@ async function handleFetchLyrics(interaction, trackId = null) {
              return;
         }
 
-        // check for genius token
+        // check genius token
         const geniusApiKey = process.env.GENIUS_API_TOKEN;
         if (!geniusApiKey) {
              log.error('Failed: GENIUS_API_TOKEN not found in .env file.');
@@ -68,7 +68,7 @@ async function handleFetchLyrics(interaction, trackId = null) {
 
         log.debug(`Searching Genius lyrics for "${title}" by "${artist}"...`);
 
-        // options for genius-lyrics-api
+        // genius api options
         const options = {
             apiKey: geniusApiKey,
             title: title,
@@ -87,11 +87,10 @@ async function handleFetchLyrics(interaction, trackId = null) {
 
         log.info(`Found lyrics for "${title}" by "${artist}".`);
 
-        // clean up common genius artifacts
+        // clean up genius results
         let cleanedLyrics = lyrics.trim();
 
-        // (new) try to find the start of actual lyrics by looking for common headers
-        // and ditch any preamble text before the first one.
+        // try removing preamble before first [header]
         const commonHeadersRegex = /\[(Verse|Chorus|Intro|Outro|Bridge|Hook|Part|Segment|Pre-Chorus|Post-Chorus|Instrumental|Speaker|Skit|Interlude|Refrain|Section|Verse \d+|Chorus \d+|Intro \d+|Outro \d+)/i;
         const firstHeaderIndex = cleanedLyrics.search(commonHeadersRegex);
 
@@ -99,26 +98,26 @@ async function handleFetchLyrics(interaction, trackId = null) {
             log.debug(`Found first lyrics header at index ${firstHeaderIndex}. Trimming preamble.`);
             cleanedLyrics = cleanedLyrics.substring(firstHeaderIndex);
         } else if (firstHeaderIndex === -1) {
-            // no common headers found, log this, the other cleanup might still help
+            // no common headers found
             log.debug('No common lyrics headers found, proceeding with other cleanup methods.');
         }
-        // else if firstheaderindex is 0, it means lyrics start with a header, so no preamble to trim based on this.
+        // (lyrics starting with header is fine)
 
-        // remove bracketed headers like [verse 1], [chorus], etc. (this also cleans the first header if we kept it above)
-        cleanedLyrics = cleanedLyrics.replace(/\[.*?\](\r?\n)?/g, ''); // made \r?\n optional to also get headers on the same line
-         // try to remove potential first-line metadata like "nn contributors..."
+        // remove [verse], [chorus] etc.
+        cleanedLyrics = cleanedLyrics.replace(/\[.*?\](\r?\n)?/g, ''); // handle headers on same line
+         // remove potential metadata first line
         const lines = cleanedLyrics.split('\n');
         if (lines.length > 0 && (lines[0].includes('Contributors') || lines[0].toLowerCase().includes(title.toLowerCase()+' lyrics') || lines[0].match(/^\d+.*Lyrics$/))) {
             log.debug(`Removing potential metadata line: "${lines[0]}"`);
             lines.shift();
             cleanedLyrics = lines.join('\n').trim();
         }
-        // consolidate multiple blank lines
-        cleanedLyrics = cleanedLyrics.replace(/(\r?\n){2,}/g, '\n\n'); // changed from 3+ to 2+ for better consolidation
-        cleanedLyrics = cleanedLyrics.trim(); // ensure no leading/trailing whitespace after all this
+        // remove extra blank lines
+        cleanedLyrics = cleanedLyrics.replace(/(\r?\n){2,}/g, '\n\n'); // allow max 1 blank line
+        cleanedLyrics = cleanedLyrics.trim(); // final trim
 
         // prepare embed
-        const maxDescLength = 4000; // discord embed description limit
+        const maxDescLength = 4000; // discord desc limit
         let truncated = false;
         if (cleanedLyrics.length > maxDescLength) {
             cleanedLyrics = cleanedLyrics.substring(0, maxDescLength) + "...";
@@ -128,22 +127,22 @@ async function handleFetchLyrics(interaction, trackId = null) {
         const albumArtUrl = track.album.images.length > 0 ? track.album.images[0].url : null;
         const embed = createLyricsEmbed(title, artist, cleanedLyrics, track.external_urls.spotify, albumArtUrl, truncated);
 
-        // send the lyrics embed
+        // send lyrics
         await interaction.editReply({ embeds: [embed] });
 
     } catch (error) {
         log.error({ err: error }, 'Error during /fetchlyrics');
-        // try to send an error message back to the user
+        // try sending error reply
         try {
-            // check if we can still edit the reply (if deferral was successful)
+            // can we edit the deferred reply?
              if (interaction.deferred || interaction.replied) {
                  await interaction.editReply({ content: 'An error occurred while fetching lyrics. Please try again later.' });
              } else {
-                 // if deferral failed or something else went wrong, try a new reply
+                 // otherwise, try a new ephemeral reply
                  await interaction.reply({ content: 'An error occurred while fetching lyrics.', ephemeral: true });
              }
         } catch (replyError) {
-             log.error({ err: replyError }, "Failed to send error reply to interaction");
+             log.error({ err: replyError }, "failed sending error reply");
         }
     }
 }

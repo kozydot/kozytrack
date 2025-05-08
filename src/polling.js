@@ -4,45 +4,45 @@ const { createSongEmbed, createNothingPlayingEmbed, createErrorEmbed } = require
 const { updateDiscordMessage } = require('./discordHandler');
 const { formatDuration } = require('./utils');
 
-const log = getLogger('Polling'); // contextual logger
-const pollingInterval = 5000; // how often to check spotify (in ms)
+const log = getLogger('POLLING'); // logger for this module
+const pollingInterval = 5000; // check spotify every 5s
 
-let pollingIntervalId = null; // stores the id from setInterval
-let isPollingActive = false; // flag to indicate if polling is running
-let currentTrackId = null; // track the id of the song currently displayed to avoid spamming updates for the same song
+let pollingIntervalId = null; // interval timer id
+let isPollingActive = false; // is polling currently active?
+let currentTrackId = null; // track last displayed song id to prevent spam
 
-// performs a single check for spotify status and updates discord if needed
+// check spotify, update discord if needed
 async function performPollCheck(targetChannel, client) {
     const spotifyApi = getSpotifyApiInstance();
     if (!spotifyApi.getAccessToken()) {
         log.debug('Skipped: Spotify not authenticated.');
-        stopPolling(); // stop polling if auth is lost
+        stopPolling(); // stop if auth lost
         return;
     }
     if (!targetChannel) {
         log.debug('Skipped: Target channel not set.');
-        stopPolling(); // stop polling if channel is lost
+        stopPolling(); // stop if channel lost
         return;
     }
 
-    // log.trace('checking spotify status...'); // uncomment for super verbose logging
+    // log.trace('checking spotify status...'); // uncomment for trace logs
 
     try {
-        const playbackState = await getCurrentTrack(); // this also handles token refresh if needed
+        const playbackState = await getCurrentTrack(); // also handles token refresh
 
         if (playbackState && playbackState.is_playing && playbackState.item) {
             const track = playbackState.item;
-            // only update if the track id is different from the last one we showed
+            // only update if track changed
             if (track.id === currentTrackId) {
-                // log.trace(`no change: still playing ${track.name}`); // uncomment for verbose
-                return; // no change, so no discord update needed
+                // log.trace(`no change: still playing ${track.name}`); // uncomment for trace logs
+                return; // no change, skip discord update
             }
             log.info(`Now Playing: ${track.name} by ${track.artists.map(a => a.name).join(', ')}`);
             currentTrackId = track.id;
             const currentTimeFormatted = formatDuration(playbackState.progress_ms);
             const totalTimeFormatted = formatDuration(track.duration_ms);
-            const embed = await createSongEmbed(track, currentTimeFormatted, totalTimeFormatted); // async now due to color extraction
-            // updateDiscordMessage returns false on critical errors (like missing permissions)
+            const embed = await createSongEmbed(track, currentTimeFormatted, totalTimeFormatted); // now async (color extraction)
+            // returns false on critical errors
             const success = await updateDiscordMessage(targetChannel, embed, client, 'Now Playing');
             if (!success) {
                 log.warn('Critical error updating Discord message. Stopping polling.');
@@ -50,45 +50,45 @@ async function performPollCheck(targetChannel, client) {
             }
 
         } else { // nothing playing, or playbackState.item is null/invalid
-            if (currentTrackId !== null) { // only send "nothing playing" if something *was* playing before
+            if (currentTrackId !== null) { // only update if something *was* playing
                 log.info('Playback stopped or paused.');
-                currentTrackId = null; // clear the current track id
-                // updateDiscordMessage returns false on critical errors
+                currentTrackId = null; // clear last track id
+                // returns false on critical errors
                 const nothingPlayingPayload = { embeds: [createNothingPlayingEmbed().toJSON()] };
                 const success = await updateDiscordMessage(targetChannel, nothingPlayingPayload, client, 'Playback Stopped');
                 if (!success) {
                     log.warn('Critical error updating Discord message. Stopping polling.');
                     stopPolling();
                 }
-            } else { // nothing was playing, and still nothing is playing
-                // log.trace('no change: still not playing anything.'); // uncomment for verbose
+            } else { // still nothing playing
+                // log.trace('no change: still not playing anything.'); // uncomment for trace logs
             }
         }
     } catch (error) {
-        // most errors during spotify fetch or discord update should be handled within those functions
+        // most errors handled elsewhere
         log.error({ err: error }, 'Unhandled error during poll check cycle');
     }
 }
 
-// starts the polling interval if spotify is authed and channel is set
+// start polling if conditions met
 async function startPollingIfNeeded(targetChannel, client) {
     const spotifyApi = getSpotifyApiInstance();
     if (spotifyApi && spotifyApi.getAccessToken() && targetChannel && !isPollingActive) {
-        // note: old message cleanup is now handled within updateDiscordMessage on each update, not just at start
+        // note: cleanup now happens in updatediscordmessage
         log.info('Conditions met: starting spotify status polling.');
-        if (pollingIntervalId) { // clear any existing interval just in case (shouldn't happen if logic is correct)
+        if (pollingIntervalId) { // clear old interval just in case
             log.debug('Clearing existing interval id before starting new one.');
             clearInterval(pollingIntervalId);
         }
-        // run an initial check immediately so the user sees the status update quickly
+        // run initial check immediately
         log.debug('Running initial poll check...');
-        await performPollCheck(targetChannel, client); // make sure to await the first check
+        await performPollCheck(targetChannel, client); // await first check
 
-        // set interval for subsequent checks, but only if the first check didn't cause polling to stop
+        // set interval only if initial check didn't stop polling
         // (e.g., due to a critical error like lost permissions)
-        if (isPollingActive || !pollingIntervalId) { // check isPollingActive as performPollCheck might call stopPolling
+        if (isPollingActive || !pollingIntervalId) { // check flag again as check might stop polling
              pollingIntervalId = setInterval(() => performPollCheck(targetChannel, client), pollingInterval);
-             isPollingActive = true; // set flag after interval is successfully created
+             isPollingActive = true; // set flag now
              log.info(`Polling interval set (${pollingInterval / 1000}s). Interval ID: ${pollingIntervalId}.`);
         } else {
              log.warn("Polling was stopped during the initial check, so not setting the interval.");
@@ -99,18 +99,18 @@ async function startPollingIfNeeded(targetChannel, client) {
     }
 }
 
-// stops the polling interval
+// stop the interval timer
 function stopPolling() {
     if (pollingIntervalId) {
         log.warn('Stopping Spotify status polling.');
         clearInterval(pollingIntervalId);
         pollingIntervalId = null;
         isPollingActive = false;
-        currentTrackId = null; // reset track id when polling stops so next "now playing" is fresh
+        currentTrackId = null; // reset track id so next play updates
     }
 }
 
-// returns current polling state
+// check if polling is active
 function isPolling() {
     return isPollingActive;
 }

@@ -1,4 +1,4 @@
-// load environment variables first
+// load .env (if not production)
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
@@ -14,14 +14,14 @@ const polling = require('./polling');
 const { handleChannelSet } = require('./commands/channelSet');
 const { handleFetchLyrics } = require('./commands/fetchLyrics');
 
-const log = getLogger('Main'); // contextual logger for main process
-const LOCK_FILE_PATH = path.join(__dirname, '..', '.kozytrack.lock'); // Lock file in project root
+const log = getLogger('MAIN'); // logger for this module
+const LOCK_FILE_PATH = path.join(__dirname, '..', '.kozytrack.lock'); // prevent multiple instances
 
-// Function to acquire a lock
+// try to create/acquire lock file
 function acquireLock() {
     try {
-        // Try to create the lock file exclusively
-        // If it exists, this will throw an error
+        // create lock file exclusively
+        // fails if already exists
         fs.writeFileSync(LOCK_FILE_PATH, process.pid.toString(), { flag: 'wx' });
         log.info(`Lock acquired. PID: ${process.pid}`);
         return true;
@@ -32,13 +32,13 @@ function acquireLock() {
             log.warn('If you are sure no other instance is running, delete the .kozytrack.lock file and try again.');
             return false;
         }
-        // For other errors, rethrow
+        // other errors? rethrow.
         log.error({ err: error }, 'Error acquiring lock file.');
         throw error;
     }
 }
 
-// Function to release the lock
+// release the lock file
 function releaseLock() {
     try {
         if (fs.existsSync(LOCK_FILE_PATH)) {
@@ -50,35 +50,35 @@ function releaseLock() {
     }
 }
 
-// main function to initialize and run the bot
+// main startup function
 async function main() {
     if (!acquireLock()) {
         log.warn('Exiting due to existing lock file.');
-        process.exit(1); // Exit if lock can't be acquired
+        process.exit(1); // exit if lock exists
     }
 
     log.info('Starting KozyTrack Bot...');
-    // load config on startup
+    // load config
     config.loadConfig();
 
-    // setup discord client event listeners
-    const client = discord.client; // get the client from the handler
+    // setup discord client
+    const client = discord.client; // get client from handler
 
     client.once('ready', async () => {
         log.info(`Logged in as ${client.user.tag}!`);
 
-        // initialize spotify (handles auth/refresh)
+        // init spotify (auth/refresh)
         log.info('Initializing Spotify connection...');
         const spotifyReady = await spotify.initializeSpotify();
 
-        // fetch target channel from config
+        // get target channel
         const targetChannel = await discord.fetchTargetChannel();
 
-        // start polling if everything is ready
+        // start polling if ready
         if (spotifyReady && targetChannel) {
             polling.startPollingIfNeeded(targetChannel, client);
         } else {
-             // log status if polling couldn't start
+             // log why polling didn't start
              if (!spotifyReady) {
                  log.warn('Bot ready, but Spotify auth needed/failed. See previous logs/authorize URL.');
              }
@@ -97,18 +97,18 @@ async function main() {
             log.info(`Processing command: /${commandName} by ${interaction.user.tag}`);
 
             try {
-                // route command to the appropriate handler
+                // route commands
                 if (commandName === 'channelset') {
                     await handleChannelSet(interaction);
                 } else if (commandName === 'fetchlyrics') {
-                    await handleFetchLyrics(interaction); // trackId will be null, handled by fetchLyrics
+                    await handleFetchLyrics(interaction); // track id handled by fetchlyrics
                 } else {
-                    // handle unknown commands
+                    // unknown command
                     log.warn(`Unknown command received: ${commandName}`);
                     await interaction.reply({ content: 'Unknown command.', ephemeral: true });
                 }
             } catch (error) {
-                // generic error handler for command processing
+                // generic command error handler
                 log.error({ err: error }, `Error handling slash command /${commandName}`);
                 try {
                     if (!interaction.replied && !interaction.deferred) {
@@ -145,7 +145,7 @@ async function main() {
                     await interaction.reply({ content: 'Could not determine the song for this action.', ephemeral: true });
                 }
             } else {
-                // Handle other button IDs if any in the future
+                // handle other buttons later?
                 log.warn(`Unknown button ID: ${interaction.customId}`);
                 await interaction.reply({ content: 'This button is not recognized.', ephemeral: true });
             }
@@ -156,25 +156,25 @@ async function main() {
     discord.login();
 }
 
-// run the main function
+// run main
 main().catch(error => {
     log.fatal({ err: error }, 'Unhandled error in main function');
-    releaseLock(); // Ensure lock is released on fatal error
+    releaseLock(); // release lock on fatal error
     process.exit(1); // exit on critical error
 });
 
-// Graceful shutdown handling
-process.on('exit', releaseLock); // Release lock on normal exit
-process.on('SIGINT', async () => { // CTRL+C
+// graceful shutdown
+process.on('exit', releaseLock); // release lock on exit
+process.on('SIGINT', async () => { // ctrl+c
     log.warn('\n[SYSTEM] SIGINT received. Shutting down...');
     polling.stopPolling();
-    // Add any other cleanup here (e.g., close db connections)
-    // releaseLock() will be called by 'exit' event
+    // other cleanup?
+    // lock released via 'exit'
     process.exit(0);
 });
 process.on('SIGTERM', async () => { // kill command
     log.warn('\n[SYSTEM] SIGTERM received. Shutting down...');
     polling.stopPolling();
-    // releaseLock() will be called by 'exit' event
+    // lock released via 'exit'
     process.exit(0);
 });

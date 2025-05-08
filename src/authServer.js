@@ -3,14 +3,14 @@ const url = require('url');
 const { getLogger } = require('./logger');
 const { saveConfig, getConfig } = require('./config');
 
-const log = getLogger('AuthServer'); // contextual logger
+const log = getLogger('AUTHSVR'); // logger for this module
 
-// simple http server to handle the spotify oauth callback
+// handles the spotify oauth callback
 
-let server; // module-level server instance
+let server; // keep track of the server instance
 
 function startCallbackServer(spotifyApiInstance) {
-    // prevent multiple servers
+    // don't start if already running
     if (server && server.listening) {
         log.debug('Callback server is already running.');
         return;
@@ -22,11 +22,11 @@ function startCallbackServer(spotifyApiInstance) {
         const query = requestUrl.query;
         log.debug(`Received request: ${req.method} ${req.url}`);
 
-        // check if it's the callback path with a code
+        // spotify redirect should hit this path with a code
         if (requestUrl.pathname === '/callback' && query.code) {
             log.info('Received Spotify authorization code. Exchanging for tokens...');
             try {
-                // exchange the code for tokens
+                // swap the code for access/refresh tokens
                 const data = await spotifyApiInstance.authorizationCodeGrant(query.code);
                 const accessToken = data.body['access_token'];
                 const newRefreshToken = data.body['refresh_token'];
@@ -35,7 +35,7 @@ function startCallbackServer(spotifyApiInstance) {
                 log.debug(`Access Token: ${accessToken.substring(0, 10)}...`);
 
                 let currentConfig = getConfig();
-                let configUpdate = { spotifyRefreshToken: currentConfig.spotifyRefreshToken }; // default to existing
+                let configUpdate = { spotifyRefreshToken: currentConfig.spotifyRefreshToken }; // start with current refresh token (if any)
 
                 if (newRefreshToken) {
                     log.info('Received Refresh Token.');
@@ -44,21 +44,21 @@ function startCallbackServer(spotifyApiInstance) {
                      log.debug('Did not receive a new refresh token (this is normal if re-authorizing). Using previous one if available.');
                 }
 
-                // set tokens on the main api instance
+                // update the main spotify api instance
                 spotifyApiInstance.setAccessToken(accessToken);
                 if (configUpdate.spotifyRefreshToken) {
                     spotifyApiInstance.setRefreshToken(configUpdate.spotifyRefreshToken);
                 }
 
-                // save the potentially new refresh token
+                // save the new refresh token (if we got one)
                 saveConfig(configUpdate);
 
-                // respond to the browser
+                // tell the user's browser it worked
                 res.writeHead(200, { 'Content-Type': 'text/plain' });
                 res.end('Authorization successful! You can close this window. The bot will now start updating your status.');
                 log.info('Responded to browser.');
 
-                // close this temporary server
+                // we're done, close the callback server
                 closeCallbackServer();
 
             } catch (error) {
@@ -69,14 +69,14 @@ function startCallbackServer(spotifyApiInstance) {
             }
 
         } else if (requestUrl.pathname === '/callback' && query.error) {
-             // handle explicit errors from spotify redirect
+             // spotify returned an error param
              log.error(`Authorization error from Spotify redirect: ${query.error}`);
              res.writeHead(400, { 'Content-Type': 'text/plain' });
              res.end(`Spotify authorization failed: ${query.error}. Please try again or check bot console.`);
              closeCallbackServer();
         }
         else {
-            // handle other requests (like favicon) or root path
+            // ignore other requests (e.g. favicon.ico)
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('KozyTrack callback server running. Waiting for Spotify redirect...');
         }
@@ -91,7 +91,7 @@ function startCallbackServer(spotifyApiInstance) {
         } else {
             log.error({ err: err }, 'Callback server error');
         }
-         server = null; // ensure server isn't marked as listening on error
+         server = null; // clear server state on error
     });
 }
 

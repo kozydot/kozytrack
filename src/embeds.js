@@ -1,12 +1,12 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, bold, italic, inlineCode } = require('discord.js');
 const axios = require('axios');
-const Vibrant = require('node-vibrant/node'); // corrected import for node.js environment
+const Vibrant = require('node-vibrant/node'); // use node-specific import
 const { getLogger } = require('./logger');
-const log = getLogger('Embeds');
+const log = getLogger('EMBEDS');
 
-const DEFAULT_EMBED_COLOR = 0x1DB954; // spotify green
+const DEFAULT_EMBED_COLOR = 0x1DB954; // default color (spotify green)
 
-// helper to get dominant color from an image url
+// get dominant color from image url
 async function getDominantColor(imageUrl) {
     log.debug(`Attempting to get dominant color for image URL: ${imageUrl}`);
     if (!imageUrl) {
@@ -21,11 +21,11 @@ async function getDominantColor(imageUrl) {
         const palette = await Vibrant.Vibrant.from(buffer).getPalette();
         log.trace({ palette }, 'Palette extracted.');
 
-        // prefer vibrant, darkvibrant, or muted swatch, fallback to default
+        // try getting a nice color, fall back if needed
         const swatch = palette.DarkVibrant || palette.Vibrant || palette.DarkMuted || palette.Muted || palette.LightVibrant || palette.LightMuted;
 
         if (swatch && swatch.hex) {
-            const colorInt = parseInt(swatch.hex.substring(1), 16); // convert hex string to integer
+            const colorInt = parseInt(swatch.hex.substring(1), 16); // convert hex #rrggbb to decimal int
             log.info(`Dominant color extracted: ${swatch.hex} (Int: ${colorInt})`);
             return colorInt;
         }
@@ -37,13 +37,11 @@ async function getDominantColor(imageUrl) {
     }
 }
 
-// creates the embed for the currently playing song status - "modern & informative" design
+// create the 'now playing' embed
 async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) {
     const artists = track.artists.map(artist => artist.name).join(', ');
     const albumArt = track.album.images.length > 0 ? track.album.images[0].url : null;
-    // using spotify icon as a placeholder for kozytrack author icon for now.
-    // todo: use a dedicated kozytrack icon url if we get one.
-    const kozyTrackIconUrl = 'https://i.imgur.com/S8FRQOb.png'; // updated kozytrack icon
+    const kozyTrackIconUrl = 'https://i.imgur.com/S8FRQOb.png'; // kozytrack icon
     const spotifyIconUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Spotify_logo_without_text.svg/100px-Spotify_logo_without_text.svg.png';
 
     const dynamicColor = await getDominantColor(albumArt);
@@ -57,7 +55,7 @@ async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) 
         .addFields(
             { name: '🎤 Artist(s)', value: bold(artists), inline: true },
             { name: '💿 Album', value: italic(track.album.name), inline: true },
-            { name: '\u200B', value: '\u200B', inline: false } // blank field for spacing before buttons
+            { name: '\u200B', value: '\u200B', inline: false } // spacer field
         )
         .setFooter({ text: `Spotify | Updated at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, iconURL: spotifyIconUrl });
 
@@ -65,7 +63,7 @@ async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) 
         embed.setThumbnail(albumArt);
     }
 
-    // interactive components
+    // buttons
     const viewOnSpotifyButton = new ButtonBuilder()
         .setLabel('Open on Spotify')
         .setStyle(ButtonStyle.Link)
@@ -84,15 +82,15 @@ async function createSongEmbed(track, currentTimeFormatted, totalTimeFormatted) 
     return { embeds: [embed.toJSON()], components: [actionRow] };
 }
 
-// creates the embed for when nothing is playing
+// create 'nothing playing' embed
 function createNothingPlayingEmbed() {
     return new EmbedBuilder()
-        .setColor(0x4F545C) // discord greyple
+        .setColor(0x4F545C) // discord grey
         .setDescription('*Nothing playing on Spotify currently.*')
         .setFooter({ text: 'Spotify Status' });
 }
 
-// creates a generic error embed
+// create generic error embed
 function createErrorEmbed(error, title = 'Error Fetching Spotify Status') {
      return new EmbedBuilder()
         .setColor(0xFF0000) // red
@@ -102,7 +100,7 @@ function createErrorEmbed(error, title = 'Error Fetching Spotify Status') {
         .setFooter({ text: 'Spotify Status Error' });
 }
 
-// creates the embed for the /fetchlyrics command
+// create lyrics embed
 function createLyricsEmbed(title, artist, lyrics, trackUrl, albumArtUrl, truncated) {
      const embed = new EmbedBuilder()
         .setColor(0x1DB954) // spotify green
